@@ -17,6 +17,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE name = :name LIMIT 1")
     suspend fun findByName(name: String): CategoryEntity?
 
+    @Query("UPDATE categories SET name = :newName WHERE id = :categoryId")
+    suspend fun updateName(categoryId: Long, newName: String)
+
     @Query("DELETE FROM categories WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

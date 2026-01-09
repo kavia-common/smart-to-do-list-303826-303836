@@ -16,8 +16,19 @@ class TodoRepository(
         if (existing != null) return existing
 
         val newId = categoryDao.insert(CategoryEntity(name = name))
-        // if IGNORE caused no insert, re-query
+        // If IGNORE caused no insert, re-query.
         return categoryDao.findByName(name) ?: CategoryEntity(id = newId, name = name)
+    }
+
+    suspend fun addCategory(name: String): CategoryEntity = ensureCategoryExists(name)
+
+    suspend fun renameCategory(categoryId: Long, newName: String) {
+        categoryDao.updateName(categoryId = categoryId, newName = newName)
+    }
+
+    suspend fun deleteCategory(categoryId: Long) {
+        categoryDao.deleteById(categoryId)
+        // Tasks will be updated by Room FK (SET_NULL) on delete.
     }
 
     suspend fun getAllTasks(): List<TaskEntity> = taskDao.getAll()

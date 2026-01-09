@@ -104,17 +104,27 @@ object TaskEditDialog {
             renderDue()
         }
 
-        AlertDialog.Builder(activity)
+        val dialog = AlertDialog.Builder(activity)
             .setTitle(if (initial == null) "Add task" else "Edit task")
             .setView(view)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton("Save", null) // set later to avoid auto-dismiss on validation failure
+            .setNegativeButton("Cancel", null)
+            .apply {
+                if (initial != null && onDelete != null) {
+                    setNeutralButton("Delete") { _, _ -> onDelete(initial) }
+                }
+            }
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val title = titleEditText.text?.toString()?.trim().orEmpty()
                 val desc = descriptionEditText.text?.toString()?.trim().orEmpty()
 
                 if (title.isBlank()) {
-                    // User-friendly fallback; dialog will close but prevents crash.
-                    // In a full app we'd keep it open; keeping minimal here.
-                    return@setPositiveButton
+                    titleEditText.error = "Title is required"
+                    titleEditText.requestFocus()
+                    return@setOnClickListener
                 }
 
                 val selectedPos = categorySpinner.selectedItemPosition
@@ -136,14 +146,12 @@ object TaskEditDialog {
                         categoryId = selectedCategoryId
                     )
                 }
+
                 onSave(updated)
+                dialog.dismiss()
             }
-            .setNegativeButton("Cancel", null)
-            .apply {
-                if (initial != null && onDelete != null) {
-                    setNeutralButton("Delete") { _, _ -> onDelete(initial) }
-                }
-            }
-            .show()
+        }
+
+        dialog.show()
     }
 }

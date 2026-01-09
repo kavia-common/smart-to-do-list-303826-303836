@@ -17,6 +17,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.example.app.data.TodoDatabase
 import org.example.app.notifications.NotificationScheduler
 import org.example.app.repository.TodoRepository
+import org.example.app.ui.CategoryManageDialog
 import org.example.app.ui.TaskAdapter
 import org.example.app.ui.TaskEditDialog
 import org.example.app.viewmodel.TaskViewModel
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var searchEditText: EditText
     private lateinit var categorySpinner: Spinner
+    private lateinit var manageCategoriesButton: ImageButton
     private lateinit var clearFiltersButton: ImageButton
     private lateinit var recyclerView: RecyclerView
     private lateinit var addFab: FloatingActionButton
@@ -43,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
         searchEditText = findViewById(R.id.searchEditText)
         categorySpinner = findViewById(R.id.categorySpinner)
+        manageCategoriesButton = findViewById(R.id.manageCategoriesButton)
         clearFiltersButton = findViewById(R.id.clearFiltersButton)
         recyclerView = findViewById(R.id.tasksRecyclerView)
         addFab = findViewById(R.id.addTaskFab)
@@ -55,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         adapter = TaskAdapter(
             onToggleComplete = { task ->
                 viewModel.toggleComplete(task)
-                // reschedule notification depending on completion state
+                // Reschedule notification depending on completion state.
                 NotificationScheduler.scheduleOrCancelForTask(this, task.copy(isCompleted = !task.isCompleted))
             },
             onEdit = { task ->
@@ -80,8 +83,10 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        // Observe categories then populate spinner.
+        // Observe categories then populate spinner + adapter category labels.
         viewModel.categories.observe(this) { categories ->
+            adapter.setCategoryNameMap(categories.associate { it.id to it.name })
+
             val names = mutableListOf<String>()
             names.add("All")
             names.addAll(categories.map { it.name })
@@ -91,11 +96,14 @@ class MainActivity : AppCompatActivity() {
             }
             categorySpinner.adapter = spinnerAdapter
 
-            // keep current selection if possible
-            viewModel.selectedCategoryName.value?.let { selected ->
-                val idx = names.indexOf(selected).takeIf { it >= 0 } ?: 0
-                categorySpinner.setSelection(idx)
+            // Keep current selection if possible; otherwise fall back to All.
+            val selected = viewModel.selectedCategoryName.value ?: "All"
+            val idx = names.indexOf(selected).takeIf { it >= 0 } ?: 0
+            if (idx == 0 && selected != "All") {
+                // Selected category no longer exists (deleted/renamed).
+                viewModel.setSelectedCategoryName("All")
             }
+            categorySpinner.setSelection(idx)
         }
 
         viewModel.filteredTasks.observe(this) { tasks ->
@@ -108,6 +116,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 viewModel.setQuery(s?.toString().orEmpty())
             }
+
             override fun afterTextChanged(s: Editable?) = Unit
         })
 
@@ -133,6 +142,22 @@ class MainActivity : AppCompatActivity() {
             viewModel.setSelectedCategoryName("All")
         }
 
+        manageCategoriesButton.setOnClickListener {
+            CategoryManageDialog.show(
+                activity = this,
+                categoriesProvider = { viewModel.categories.value ?: emptyList() },
+                onAdd = { name ->
+                    viewModel.addCategory(name)
+                },
+                onRename = { cat, newName ->
+                    viewModel.renameCategory(cat, newName)
+                },
+                onDelete = { cat ->
+                    viewModel.deleteCategory(cat)
+                }
+            )
+        }
+
         addFab.setOnClickListener {
             TaskEditDialog.show(
                 activity = this,
@@ -140,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 categoriesProvider = { viewModel.categories.value ?: emptyList() },
                 onSave = { created ->
                     viewModel.addTask(created) { newId ->
-                        // schedule with the ID that Room generated
+                        // Schedule with the ID that Room generated.
                         NotificationScheduler.scheduleOrCancelForTask(this, created.copy(id = newId))
                     }
                 },
@@ -148,7 +173,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // Seed a default category if empty (non-blocking).
+        // Seed default categories if empty (non-blocking).
         viewModel.ensureDefaultCategory()
     }
 

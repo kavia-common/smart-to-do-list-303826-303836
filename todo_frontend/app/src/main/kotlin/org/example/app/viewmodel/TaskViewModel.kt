@@ -61,6 +61,45 @@ class TaskViewModel(
         }
     }
 
+    fun addCategory(name: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.addCategory(name.trim()) }
+            loadCategories()
+            // Category list changed; tasks might not need reload, but do it to ensure FK/labels are consistent.
+            loadTasks()
+            applyFilters()
+        }
+    }
+
+    fun renameCategory(category: CategoryEntity, newName: String) {
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.renameCategory(category.id, trimmed) }
+            // If user had this category selected by name, update selection.
+            if (selectedCategoryName.value == category.name) {
+                selectedCategoryName.postValue(trimmed)
+            }
+            loadCategories()
+            loadTasks()
+            applyFilters()
+        }
+    }
+
+    fun deleteCategory(category: CategoryEntity) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.deleteCategory(category.id) }
+            // If deleted category was selected, reset filter.
+            if (selectedCategoryName.value == category.name) {
+                selectedCategoryName.postValue("All")
+            }
+            loadCategories()
+            loadTasks()
+            applyFilters()
+        }
+    }
+
     fun addTask(task: TaskEntity, onInserted: (Long) -> Unit) {
         viewModelScope.launch {
             val id = withContext(Dispatchers.IO) { repository.addTask(task) }

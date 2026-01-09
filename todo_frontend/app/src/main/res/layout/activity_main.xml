@@ -39,11 +39,24 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
         android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@+id/searchEditText"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toStartOf="@+id/manageCategoriesButton"
+        android:layout_marginEnd="8dp" />
+
+    <ImageButton
+        android:id="@+id/manageCategoriesButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="Manage categories"
+        android:src="@android:drawable/ic_menu_manage"
+        android:background="?android:selectableItemBackgroundBorderless"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/searchEditText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="@+id/categorySpinner" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tasksRecyclerView"

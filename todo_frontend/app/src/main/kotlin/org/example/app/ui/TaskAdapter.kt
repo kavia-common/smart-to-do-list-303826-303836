@@ -1,5 +1,6 @@
 package org.example.app.ui
 
+import android.graphics.Paint
 import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
@@ -31,6 +32,19 @@ class TaskAdapter(
         val editButton: ImageButton = itemView.findViewById(R.id.editButton)
     }
 
+    /**
+     * Updated by MainActivity so we can render category names without changing TaskEntity schema.
+     * Key: categoryId, Value: categoryName
+     */
+    private var categoryNameById: Map<Long, String> = emptyMap()
+
+    // PUBLIC_INTERFACE
+    fun setCategoryNameMap(map: Map<Long, String>) {
+        /** Provide category id->name mapping for richer item rendering. */
+        categoryNameById = map
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_task, parent, false)
         return TaskViewHolder(view)
@@ -38,12 +52,19 @@ class TaskAdapter(
 
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
         val task = getItem(position)
+
         holder.titleTextView.text = task.title
+        holder.titleTextView.paintFlags = if (task.isCompleted) {
+            holder.titleTextView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+        } else {
+            holder.titleTextView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+        }
 
         holder.completeCheckBox.setOnCheckedChangeListener(null)
         holder.completeCheckBox.isChecked = task.isCompleted
-        holder.completeCheckBox.setOnCheckedChangeListener { _, _ ->
-            onToggleComplete(task)
+        holder.completeCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            // Avoid redundant updates triggered by view recycling.
+            if (isChecked != task.isCompleted) onToggleComplete(task)
         }
 
         val due = task.dueAtMillis?.let {
@@ -51,7 +72,10 @@ class TaskAdapter(
             "Due: $formatted"
         } ?: "No due date"
 
-        val cat = task.categoryId?.let { "Category set" } ?: "No category"
+        val cat = task.categoryId?.let { id ->
+            categoryNameById[id]?.let { "Category: $it" } ?: "Category: (deleted)"
+        } ?: "No category"
+
         holder.metaTextView.text = "$due • $cat"
 
         holder.editButton.setOnClickListener { onEdit(task) }
